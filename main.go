@@ -151,8 +151,8 @@ func findHighestScoringBoard(boards []board) (bestBoard board) {
 	return
 }
 
-func playBingo(boards []board, numbers []int) (score int) {
-	defer timeit(time.Now(), "playBingo")
+func playBingoBestChoice(boards []board, numbers []int) (score int) {
+	defer timeit(time.Now(), "playBingoBestChoice")
 	for i, currentNumber := range numbers {
 		boards = markDrawnNumber(boards, currentNumber)
 		winningBoards := findWinningBoards(boards)
@@ -168,17 +168,28 @@ func playBingo(boards []board, numbers []int) (score int) {
 	return
 }
 
+func playBingoWorstChoice(boards []board, numbers []int) (score int) {
+	defer timeit(time.Now(), "playBingoBestChoice")
+	// TODO: select the board to win LAST
+	// i.e. filter all winning boards until there's only one board left
+	return
+}
+
 func part1(fd *os.File) (result int) {
 	defer timeit(time.Now(), "part1")
 	scanner := bufio.NewScanner(fd)
 	numbers := parseNumberDraws(scanner)
 	boards := parseNumberBoards(scanner)
-	result = playBingo(boards, numbers)
+	result = playBingoBestChoice(boards, numbers)
 	return
 }
 
 func part2(fd *os.File) (result int) {
 	defer timeit(time.Now(), "part2")
+	scanner := bufio.NewScanner(fd)
+	numbers := parseNumberDraws(scanner)
+	boards := parseNumberBoards(scanner)
+	result = playBingoWorstChoice(boards, numbers)
 	return
 }
 
