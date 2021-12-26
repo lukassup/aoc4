@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -23,6 +24,20 @@ func timeit(start time.Time, name string) {
 const boardSize = 5
 
 type board [boardSize][boardSize]int
+
+func printBoard(board board) {
+	for _, row := range board {
+		var str string
+		for pos, val := range row {
+			if pos > 0 {
+				str += fmt.Sprintf(",%3d", val)
+			} else {
+				str += fmt.Sprintf("%3d", val)
+			}
+		}
+		fmt.Println(str)
+	}
+}
 
 func parseNumberDraws(scanner *bufio.Scanner) (numbers []int) {
 	defer timeit(time.Now(), "parseNumberDraws")
@@ -92,8 +107,8 @@ func markDrawnNumber(boards []board, number int) []board {
 
 func findWinningBoards(boards []board) (winningBoards []board) {
 	// since we set guessed numbers to -1:
-	// - find if there are any rows with sum == -(boardSize)
-	// - find if there are any columns with sum == -(boardSize)
+	// - find any boards with row sum == -(boardSize)
+	// - find are boards with column sum == -(boardSize)
 	for _, board := range boards {
 		done := false
 		// sum rows
@@ -127,8 +142,8 @@ func findWinningBoards(boards []board) (winningBoards []board) {
 }
 
 func calcBoardScore(board board) (score int) {
-	// - sum all numbers on the board that have not been guessed
-	// - skip negative numbers when checking board score
+	// - sum all numbers on the board
+	// - skip guessed (negative) numbers
 	for _, row := range board {
 		for _, val := range row {
 			if val > 0 {
@@ -140,6 +155,7 @@ func calcBoardScore(board board) (score int) {
 }
 
 func findHighestScoringBoard(boards []board) (bestBoard board) {
+	// in case there is more than one board, pick the better one
 	bestScore := 0
 	for _, board := range boards {
 		score := calcBoardScore(board)
@@ -153,14 +169,15 @@ func findHighestScoringBoard(boards []board) (bestBoard board) {
 
 func playBingoBestChoice(boards []board, numbers []int) (score int) {
 	defer timeit(time.Now(), "playBingoBestChoice")
-	for i, currentNumber := range numbers {
+	for draw, currentNumber := range numbers {
 		boards = markDrawnNumber(boards, currentNumber)
 		winningBoards := findWinningBoards(boards)
 		if len(winningBoards) > 0 {
 			fmt.Printf(
 				"draw #%02d, number: %d - found %d winning board(s)\n",
-				i+1, currentNumber, len(winningBoards))
+				draw+1, currentNumber, len(winningBoards))
 			bestBoard := findHighestScoringBoard(winningBoards)
+			printBoard(bestBoard)
 			score = calcBoardScore(bestBoard) * currentNumber
 			break
 		}
@@ -168,28 +185,59 @@ func playBingoBestChoice(boards []board, numbers []int) (score int) {
 	return
 }
 
+func findNonWinningBoards(boards []board) (nonWinningBoards []board) {
+	// since we set guessed numbers to -1:
+	// - find all boards with no rows sum == -(boardSize)
+	// - find all boards with no columns sum == -(boardSize)
+	for _, board := range boards {
+		winning := false
+		// sum rows
+		for _, row := range board {
+			sum := 0
+			for _, val := range row {
+				sum += val
+			}
+			if sum == -boardSize {
+				winning = true
+				break
+			}
+		}
+		// sum columns
+		for x := 0; x < boardSize; x++ {
+			sum := 0
+			for y := 0; y < boardSize; y++ {
+				sum += board[y][x]
+			}
+			if sum == -boardSize {
+				winning = true
+				break
+			}
+		}
+		if !winning {
+			nonWinningBoards = append(nonWinningBoards, board)
+		}
+	}
+	return
+}
+
 func playBingoWorstChoice(boards []board, numbers []int) (score int) {
-	defer timeit(time.Now(), "playBingoBestChoice")
-	// TODO: select the board to win LAST
-	// i.e. filter all winning boards until there's only one board left
-	return
-}
-
-func part1(fd *os.File) (result int) {
-	defer timeit(time.Now(), "part1")
-	scanner := bufio.NewScanner(fd)
-	numbers := parseNumberDraws(scanner)
-	boards := parseNumberBoards(scanner)
-	result = playBingoBestChoice(boards, numbers)
-	return
-}
-
-func part2(fd *os.File) (result int) {
-	defer timeit(time.Now(), "part2")
-	scanner := bufio.NewScanner(fd)
-	numbers := parseNumberDraws(scanner)
-	boards := parseNumberBoards(scanner)
-	result = playBingoWorstChoice(boards, numbers)
+	defer timeit(time.Now(), "playBingoWorstChoice")
+	// FIXME: there is a bug somewhere - does not produce the correct result
+	// select the board to win LAST
+	// filter all winning boards until there's only one board left
+	for draw, currentNumber := range numbers {
+		boards = markDrawnNumber(boards, currentNumber)
+		// no longer need to iterate over boards that have already won
+		boards = findNonWinningBoards(boards)
+		if len(boards) < 2 {
+			fmt.Printf(
+				"draw #%02d, number: %2d - found %d last non-winning board(s)\n",
+				draw+1, currentNumber, len(boards))
+			printBoard(boards[0])
+			score = calcBoardScore(boards[0]) * currentNumber
+			break
+		}
+	}
 	return
 }
 
@@ -204,11 +252,15 @@ func main() {
 	defer fd.Close()
 	check(err)
 
-	result1 := part1(fd)
+	scanner := bufio.NewScanner(fd)
+	numbers := parseNumberDraws(scanner)
+	boards := parseNumberBoards(scanner)
+
+	result1 := playBingoBestChoice(boards, numbers)
 	fmt.Printf("part1 result: %+v\n", result1)
 
-	// fd.Seek(0, io.SeekStart)
+	fd.Seek(0, io.SeekStart)
 
-	// result2 := part2(fd)
-	// fmt.Printf("part2 result: %+v\n", result2)
+	result2 := playBingoWorstChoice(boards, numbers)
+	fmt.Printf("part2 result: %+v\n", result2)
 }
