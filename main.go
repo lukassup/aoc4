@@ -110,7 +110,7 @@ func findWinningBoards(boards []board) (winningBoards []board) {
 	// - find any boards with row sum == -(boardSize)
 	// - find are boards with column sum == -(boardSize)
 	for _, board := range boards {
-		done := false
+		winning := false
 		// sum rows
 		for _, row := range board {
 			sum := 0
@@ -119,11 +119,11 @@ func findWinningBoards(boards []board) (winningBoards []board) {
 			}
 			if sum == -boardSize {
 				winningBoards = append(winningBoards, board)
-				done = true
+				winning = true
 				break
 			}
 		}
-		if done {
+		if winning {
 			continue
 		}
 		// sum columns
@@ -202,6 +202,9 @@ func findNonWinningBoards(boards []board) (nonWinningBoards []board) {
 				break
 			}
 		}
+		if winning {
+			continue
+		}
 		// sum columns
 		for x := 0; x < boardSize; x++ {
 			sum := 0
@@ -222,16 +225,17 @@ func findNonWinningBoards(boards []board) (nonWinningBoards []board) {
 
 func playBingoWorstChoice(boards []board, numbers []int) (score int) {
 	defer timeit(time.Now(), "playBingoWorstChoice")
-	// FIXME: there is a bug somewhere - does not produce the correct result
 	// select the board to win LAST
 	// filter all winning boards until there's only one board left
 	for draw, currentNumber := range numbers {
 		boards = markDrawnNumber(boards, currentNumber)
-		// no longer need to iterate over boards that have already won
-		boards = findNonWinningBoards(boards)
-		if len(boards) < 2 {
+		if len(boards) > 2 {
+			// no longer need to iterate over boards that have already won
+			boards = findNonWinningBoards(boards)
+		} else {
+			boards = findWinningBoards(boards)
 			fmt.Printf(
-				"draw #%02d, number: %2d - found %d last non-winning board(s)\n",
+				"draw #%02d, number: %2d - found %d last winning board(s)\n",
 				draw+1, currentNumber, len(boards))
 			printBoard(boards[0])
 			score = calcBoardScore(boards[0]) * currentNumber
